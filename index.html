@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Clap Tracker</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2rem;
+      background: #f5f5f5;
+    }
+    button {
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 400px;
+      margin: 1rem auto;
+      text-align: left;
+    }
+    li {
+      background: white;
+      margin: 0.2rem 0;
+      padding: 0.5rem;
+      border-radius: 5px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>👏 Clap Tracker</h1>
+  <button id="startBtn">Start Listening</button>
+  <ul id="clapList"></ul>
+
+  <script>
+    const startBtn = document.getElementById("startBtn");
+    const clapList = document.getElementById("clapList");
+    let audioContext, analyser, dataArray;
+
+    function addClap() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString() + "." + now.getMilliseconds();
+      const li = document.createElement("li");
+      li.textContent = timeStr;
+      clapList.prepend(li); // newest first
+    }
+
+    function detectClap() {
+      analyser.getByteTimeDomainData(dataArray);
+
+      // Calculate amplitude
+      let max = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        max = Math.max(max, Math.abs(dataArray[i] - 128));
+      }
+
+      if (max > 60) { // sensitivity threshold
+        if (!detectClap.cooldown) {
+          addClap();
+          detectClap.cooldown = true;
+          setTimeout(() => detectClap.cooldown = false, 300); // prevent double-trigger
+        }
+      }
+
+      requestAnimationFrame(detectClap);
+    }
+
+    startBtn.addEventListener("click", async () => {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        dataArray = new Uint8Array(analyser.fftSize);
+        source.connect(analyser);
+        detectClap();
+        startBtn.disabled = true;
+        startBtn.textContent = "Listening...";
+      }
+    });
+  </script>
+</body>
+</html>
